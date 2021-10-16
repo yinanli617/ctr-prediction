@@ -18,10 +18,10 @@ intCols = (lambda t: t[0], filter(
     lambda t: t[1] == 'int', impression.dtypes))
 
 # [row_idx][json_idx]
-strColsCount = sorted(list(map(lambda c: (c, impression.select(F.countDistinct(
-    c)).collect()[0][0]), strCols)), key=lambda x: x[1], reverse=True)
-intColsCount = sorted(list(map(lambda c: (c, impression.select(F.countDistinct(
-    c)).collect()[0][0]), intCols)), key=lambda x: x[1], reverse=True)
+strColsCount = list(sorted(map(lambda c: (c, impression.select(F.countDistinct(
+    c)).collect()[0][0]), strCols), key=lambda x: x[1], reverse=True))
+intColsCount = list(sorted(map(lambda c: (c, impression.select(F.countDistinct(
+    c)).collect()[0][0]), intCols), key=lambda x: x[1], reverse=True))
 
 # All of the columns (string or integer) are categorical columns
 #  except for the [click] column
