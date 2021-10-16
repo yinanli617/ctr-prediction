@@ -19,9 +19,9 @@ intCols = map(lambda t: t[0], filter(
     lambda t: t[1] == 'int', impression.dtypes))
 
 # [row_idx][json_idx]
-strColsCount = sorted(map(lambda c: (c, impression.select(countDistinct(
+strColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
     c)).collect()[0][0]), strCols), key=lambda x: x[1], reverse=True)
-intColsCount = sorted(map(lambda c: (c, impression.select(countDistinct(
+intColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
     c)).collect()[0][0]), intCols), key=lambda x: x[1], reverse=True)
 
 # All of the columns (string or integer) are categorical columns
