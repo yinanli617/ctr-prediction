@@ -12,9 +12,9 @@ impression = spark.read.option('header', 'true') \
                        .csv('gs://pyspark-yli/avazu-ctr-prediction/train.csv') \
                        .selectExpr("*", "substr(hour, 7) as hr") \
 
-strCols = (lambda t: t[0], filter(
+strCols = map(lambda t: t[0], filter(
     lambda t: t[1] == 'string', impression.dtypes))
-intCols = (lambda t: t[0], filter(
+intCols = map(lambda t: t[0], filter(
     lambda t: t[1] == 'int', impression.dtypes))
 
 # [row_idx][json_idx]
