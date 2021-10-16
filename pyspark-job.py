@@ -12,16 +12,16 @@ impression = spark.read.option('header', 'true') \
                        .csv('gs://pyspark-yli/avazu-ctr-prediction/train.csv') \
                        .selectExpr("*", "substr(hour, 7) as hr") \
 
-strCols = map(lambda t: t[0], filter(
+strCols = (lambda t: t[0], filter(
     lambda t: t[1] == 'string', impression.dtypes))
-intCols = map(lambda t: t[0], filter(
+intCols = (lambda t: t[0], filter(
     lambda t: t[1] == 'int', impression.dtypes))
 
 # [row_idx][json_idx]
-strColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
-    c)).collect()[0][0]), strCols), key=lambda x: x[1], reverse=True)
-intColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
-    c)).collect()[0][0]), intCols), key=lambda x: x[1], reverse=True)
+strColsCount = sorted(list(map(lambda c: (c, impression.select(F.countDistinct(
+    c)).collect()[0][0]), strCols), key=lambda x: x[1], reverse=True))
+intColsCount = sorted(list(map(lambda c: (c, impression.select(F.countDistinct(
+    c)).collect()[0][0]), intCols), key=lambda x: x[1], reverse=True))
 
 # All of the columns (string or integer) are categorical columns
 #  except for the [click] column
@@ -34,12 +34,12 @@ categorical.remove('click')
 
 # Apply string indexer to all of the categorical columns
 #  And add _idx to the column name to indicate the index of the categorical value
-stringIndexers = map(lambda c: StringIndexer(
-    inputCol=c, outputCol=c + "_idx"), categorical)
+stringIndexers = list(map(lambda c: StringIndexer(
+    inputCol=c, outputCol=c + "_idx"), categorical))
 
 # Assemble the put as the input to the VectorAssembler
 #   with the output being our features
-assemblerInputs = map(lambda c: c + "_idx", categorical)
+assemblerInputs = list(map(lambda c: c + "_idx", categorical))
 vectorAssembler = VectorAssembler(
     inputCols=assemblerInputs, outputCol="features"
 )
