@@ -9,7 +9,7 @@ spark = SparkSession.builder \
 
 impression = spark.read.option('header', 'true') \
                        .option('inferSchema', 'true') \
-                       .csv('dbfs:/laioffer/spark_hw5/data/train.csv') \
+                       .csv('gs://pyspark-yli/avazu-ctr-prediction/train.csv') \
                        .selectExpr("*", "substr(hour, 7) as hr") \
                        .repartition(64)
 
