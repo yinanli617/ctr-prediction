@@ -26,10 +26,10 @@ intColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
 # All of the columns (string or integer) are categorical columns
 #  except for the [click] column
 maxBins = 70
-categorical = map(lambda c: c[0], filter(
-    lambda c: c[1] <= maxBins, strColsCount))
-categorical += map(lambda c: c[0],
-                   filter(lambda c: c[1] <= maxBins, intColsCount))
+categorical = list(map(lambda c: c[0],
+                       filter(lambda c: c[1] <= maxBins, strColsCount)))
+categorical += list(map(lambda c: c[0],
+                   filter(lambda c: c[1] <= maxBins, intColsCount)))
 categorical.remove('click')
 
 # Apply string indexer to all of the categorical columns
