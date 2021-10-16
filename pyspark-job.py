@@ -11,7 +11,6 @@ impression = spark.read.option('header', 'true') \
                        .option('inferSchema', 'true') \
                        .csv('gs://pyspark-yli/avazu-ctr-prediction/train.csv') \
                        .selectExpr("*", "substr(hour, 7) as hr") \
-                       .repartition(64)
 
 strCols = map(lambda t: t[0], filter(
     lambda t: t[1] == 'string', impression.dtypes))
