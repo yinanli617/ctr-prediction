@@ -2,6 +2,7 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 from pyspark.ml.feature import StringIndexer, VectorAssembler, OneHotEncoder
 from pyspark.ml import Pipeline
+from pyspark.ml.functions import vector_to_array
 
 spark = SparkSession.builder \
                     .appName("ctr prediction") \
@@ -44,7 +45,7 @@ oneHotEncoders = list(map(lambda c: OneHotEncoder(inputCol = c + "_idx", outputC
 #   with the output being our features
 assemblerInputs = list(map(lambda c: c + "_onehot", categorical))
 vectorAssembler = VectorAssembler(
-    inputCols=assemblerInputs, outputCol="features"
+    inputCols=assemblerInputs, outputCol="feature_vectors"
 )
 
 # The [click] column is our label
@@ -60,7 +61,11 @@ pipeline = Pipeline(stages=stages)
 featurizer = pipeline.fit(impression)
 
 # dataframe with feature and intermediate transformation columns appended
-featurizedImpressions = featurizer.transform(impression)
+featurizedImpressions = featurizer.transform(impression) \
+                                  .select('label',
+                                          'hr',
+                                          vector_to_array(F.col("feature_vectors")).alias("features"),
+                                         )
 
 train, test = featurizedImpressions.select(["label", "features", "hr"]) \
                                    .randomSplit([0.7, 0.3], 42)
