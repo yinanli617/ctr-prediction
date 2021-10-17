@@ -10,7 +10,7 @@ spark = SparkSession.builder \
 
 impression = spark.read.option('header', 'true') \
                        .option('inferSchema', 'true') \
-                       .csv('gs://pyspark-yli/avazu-ctr-prediction/train.csv') \
+                       .csv('gs://pyspark-yli/avazu-ctr-prediction/filtered_train.csv') \
                        .selectExpr("*", "substr(hour, 7) as hr") \
 
 strCols = map(lambda t: t[0], filter(
