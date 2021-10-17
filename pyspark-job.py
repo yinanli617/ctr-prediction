@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
-from pyspark.ml.feature import StringIndexer, VectorAssembler
+from pyspark.ml.feature import StringIndexer, VectorAssembler, OneHotEncoder
 from pyspark.ml import Pipeline
 
 spark = SparkSession.builder \
@@ -37,9 +37,12 @@ categorical.remove('click')
 stringIndexers = list(map(lambda c: StringIndexer(
     inputCol=c, outputCol=c + "_idx"), categorical))
 
+# Apply one hot encoding
+oneHotEncoders = list(map(lambda c: OneHotEncoder(inputCol = c + "_idx", outputCol = c + "_onehot"), categorical))
+
 # Assemble the put as the input to the VectorAssembler
 #   with the output being our features
-assemblerInputs = list(map(lambda c: c + "_idx", categorical))
+assemblerInputs = list(map(lambda c: c + "_onehot", categorical))
 vectorAssembler = VectorAssembler(
     inputCols=assemblerInputs, outputCol="features"
 )
@@ -48,7 +51,7 @@ vectorAssembler = VectorAssembler(
 labelStringIndexer = StringIndexer(inputCol="click", outputCol="label")
 
 # The stages of our ML pipeline
-stages = stringIndexers + [vectorAssembler, labelStringIndexer]
+stages = stringIndexers + oneHotEncoders + [vectorAssembler, labelStringIndexer]
 
 # Create our pipeline
 pipeline = Pipeline(stages=stages)
