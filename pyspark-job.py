@@ -65,11 +65,13 @@ featurizedImpressions = featurizer.transform(impression)
 train, test = featurizedImpressions.select(["label", "features", "hr"]) \
                                    .randomSplit([0.7, 0.3], 42)
 
-train.write \
+train.repartition(1) \
+     .write \
      .mode('overwrite') \
      .parquet('gs://pyspark-yli/avazu-ctr-prediction/training.parquet')
 
-test.write \
+test.repartition(1) \
+    .write \
     .mode('overwrite') \
     .parquet('gs://pyspark-yli/avazu-ctr-prediction/validation.parquet')
 
