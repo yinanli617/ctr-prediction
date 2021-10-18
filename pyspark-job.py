@@ -46,9 +46,9 @@ embed_cols = [('device_model', impression.select('device_model').distinct().coun
 #  And add _idx to the column name to indicate the index of the categorical value
 strIndexers_wide = list(map(lambda c: StringIndexer(inputCol=c, outputCol=c+'_idx'), wide_cols))
 
-embed_features = map(lambda c:c[0] + '-' + str(c[1]) + '-' + str(c[2]), embed_cols)
+embed_features = map(lambda c:c[0] + 'SEP' + str(c[1]) + 'SEP' + str(c[2]), embed_cols)
 strIndexers_embed = list(map(lambda c: StringIndexer(inputCol=c[0],
-                                                     outputCol=c[0] + '-' + str(c[1]) + '-' + str(c[2])
+                                                     outputCol=c[0] + 'SEP' + str(c[1]) + 'SEP' + str(c[2])
                                                     ), embed_cols))
 oneHotEncoders = list(map(lambda c: OneHotEncoder(inputCol=c+'_idx', outputCol=c+'_onehot'), wide_cols))
 
