@@ -68,9 +68,17 @@ featurizer = pipeline.fit(impression)
 
 # dataframe with feature and intermediate transformation columns appended
 featurizedImpressions = featurizer.transform(impression) \
+<<<<<<< HEAD
                                   .withColumn('wide_features', vector_to_array('wide_features_v'))                                
 
 train, test = featurizedImpressions.select('wide_features', 'label', *embed_features) \
+=======
+                                  .select('label',
+                                          vector_to_array(F.col("feature_vectors")).alias("features"),
+                                         )
+
+train, test = featurizedImpressions.select(["label", "features"]) \
+>>>>>>> 59b5cb4481740b9094e22cf1c9de6eff6848e6fc
                                    .randomSplit([0.7, 0.3], 42)
 
 train.repartition(1) \
