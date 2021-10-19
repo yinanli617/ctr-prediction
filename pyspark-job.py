@@ -76,11 +76,11 @@ train, test = featurizedImpressions.select('wide_features', 'label', *embed_feat
 train.repartition(1) \
      .write \
      .mode('overwrite') \
-     .parquet('gs://pyspark-yli/avazu-ctr-prediction/training.parquet')
+     .csv('gs://pyspark-yli/avazu-ctr-prediction/training.csv')
 
 test.repartition(1) \
     .write \
     .mode('overwrite') \
-    .parquet('gs://pyspark-yli/avazu-ctr-prediction/validation.parquet')
+    .csv('gs://pyspark-yli/avazu-ctr-prediction/validation.csv')
 
 spark.stop()
