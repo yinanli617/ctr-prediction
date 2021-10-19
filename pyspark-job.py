@@ -73,17 +73,17 @@ featurizedImpressions = featurizer.transform(impression) \
 train, test = featurizedImpressions.select('wide_features', 'label', *embed_features) \
                                    .randomSplit([0.7, 0.3], 42)
 
-train_repartition = train.count() / 100000
-val_repartition = val.count() / 100000
+# train_repartition = train.count() // 100000
+# val_repartition = val.count() // 100000
 
-train.repartition(train_repartition) \
+train.repartition(1) \
      .write \
      .mode('overwrite') \
-     .parquet('gs://pyspark-yli/avazu-ctr-prediction/training_parquet')
+     .csv('gs://pyspark-yli/avazu-ctr-prediction/training_csv')
 
-test.repartition(val_repartition) \
+test.repartition(1) \
     .write \
     .mode('overwrite') \
-    .parquet('gs://pyspark-yli/avazu-ctr-prediction/validation_parquet')
+    .csv('gs://pyspark-yli/avazu-ctr-prediction/validation_parquet')
 
 spark.stop()
