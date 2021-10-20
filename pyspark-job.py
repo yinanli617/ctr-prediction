@@ -90,7 +90,7 @@ featurizer = pipeline.fit(impression)
 featurizedImpressions = featurizer.transform(impression) \
                                   .withColumn('wide_features', vector_to_array('wide_features_v'))
 
-train, test = featurizedImpressions.select([F.col('wide_features')[i] for i in range(wide_col_counts)] + ['label'] + embed_features) \
+train, test = featurizedImpressions.select([F.col('wide_features')[i] for i in range(wide_col_counts)] + ['label'] + list(embed_features)) \
                                    .randomSplit([0.7, 0.3], 42)
 
 # train_repartition = train.count() // 100000
