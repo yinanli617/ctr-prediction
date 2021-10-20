@@ -43,8 +43,8 @@ wide_cols += list(map(lambda c: c[0],
                   filter(lambda c: c[1] <= maxBins, intColsCount)))
 wide_col_counts += list(map(lambda c: c[1],
                         filter(lambda c: c[1] <= maxBins, intColsCount)))
-wide_col_counts = sum(wide_col_counts) - 2  # exclude "click"
 wide_cols.remove('click')
+wide_col_counts = sum(wide_col_counts) - 2 - len(wide_cols)  # exclude "click" and 1 dimension from each wide features (one-hot)
 
 embed_cols = [('device_model', impression.select('device_model').distinct().count(), 256),
               ('app_id', impression.select('app_id').distinct().count(), 256),
