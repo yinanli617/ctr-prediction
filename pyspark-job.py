@@ -96,14 +96,14 @@ train, test = featurizedImpressions.select([F.col('wide_features')[i] for i in r
 # train_repartition = train.count() // 100000
 # val_repartition = val.count() // 100000
 
-train.repartition(200) \
+train.repartition(1) \
      .write \
      .mode('overwrite') \
-     .parquet('gs://pyspark-yli/avazu-ctr-prediction/training_parquet_200')
+     .csv('gs://pyspark-yli/avazu-ctr-prediction/training_csv')
 
-test.repartition(200) \
+test.repartition(1) \
     .write \
     .mode('overwrite') \
-    .parquet('gs://pyspark-yli/avazu-ctr-prediction/validation_parquet_200')
+    .csv('gs://pyspark-yli/avazu-ctr-prediction/validation_csv')
 
 spark.stop()
