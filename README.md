@@ -41,7 +41,7 @@ The spark job was wrapped up with [spark operator](https://github.com/GoogleClou
  - The base image can be found [here](https://github.com/yinanli617/pyspark-gcp) which is configured to use BigQuery and Cloud Storage from Google Cloud Platform.
  - The spark job can be run by `kubectl create -f ctr-spark-job.yaml -n <namespace>`.
 
-**Note: if you would like to try out this by yourself, make sure to change the settings in the yaml file to use your own <project-name>, <service-account>, <namespace>, and <gs-bucket> etc.**
+**Note: if you would like to try out this by yourself, make sure to change the settings in the yaml file to use your own `<project-name>`, `<service-account>`, `<namespace>`, and `<gs-bucket>` etc.**
 
 ## Feature engineering
 1. For wide features:
