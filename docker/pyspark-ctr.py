@@ -26,7 +26,6 @@ strCols = map(lambda t: t[0], filter(
 intCols = map(lambda t: t[0], filter(
     lambda t: t[1] == 'int', impression.dtypes))
 
-# [row_idx][json_idx]
 strColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
     c)).collect()[0][0]), strCols), key=lambda x: x[1], reverse=True)
 intColsCount = sorted(map(lambda c: (c, impression.select(F.countDistinct(
@@ -93,8 +92,6 @@ featurizedImpressions = featurizer.transform(impression) \
 train, test = featurizedImpressions.select([F.col('wide_features')[i] for i in range(wide_col_counts)] + ['label'] + list(embed_features)) \
                                    .randomSplit([0.7, 0.3], 42)
 
-# train_repartition = train.count() // 100000
-# val_repartition = val.count() // 100000
 
 train.repartition(1) \
      .write \
