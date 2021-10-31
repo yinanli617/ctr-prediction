@@ -61,7 +61,7 @@ The spark job was wrapped up with [spark operator](https://github.com/GoogleClou
      - `site_domain` (embedding_dim: 256);
      - `app_domain` (embedding_dim: 128);
 
-## Model structure
+## Model architecture
 - The deep part of the model contains 3 hidden layers with `hidden_size = [512, 256, 128]`;
 - Relu is used as activation function in the deep part;
 - The original [paper](https://arxiv.org/abs/1606.07792) used L1 regularization for the wide part. Here, Adam optimizer is used for both wide and deep parts. However, a dropout layer with `dropout_p=0.7` is added to the wide part before merging with the deep part.
