@@ -67,4 +67,4 @@ The spark job was wrapped up with [spark operator](https://github.com/GoogleClou
 - The original [paper](https://arxiv.org/abs/1606.07792) used L1 regularization for the wide part. Here, Adam optimizer is used for both wide and deep parts. However, a dropout layer with `dropout_p=0.7` is added to the wide part before merging with the deep part.
 
 ## Results
-ROC_AUC was selected as the evaluation metric (see the notebook `compute_roc_auc.ipynb` for the reasons). After 15 epochs of training, the wide and deep model results in ROC_AUC of 0.7497 - a significant improvement from 
+ROC_AUC was selected as the evaluation metric (see the notebook `compute_roc_auc.ipynb` for the reasons). After 15 epochs of training, the wide and deep model results in ROC_AUC of 0.7497 - a significant improvement from gradient boosting tree model trained in Spark which has an ROC_AUC score of 0.7112.
