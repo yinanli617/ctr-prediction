@@ -29,8 +29,8 @@ spec:
       GCS_PROJECT_ID: kfp-yli
     serviceAccount: spark-sa
   executor:
-    instances: 1
-    cores: 4
+    instances: 2
+    cores: 3
     labels:
       version: 3.1.1
     memory: "6g"

@@ -18,42 +18,26 @@ The dataset I used in this project is the [Avazu CTR dataset](https://www.kaggle
 
 ## Approach
 
-In this project, I build a [Wide and Deep](https://ai.googleblog.com/2016/06/wide-deep-learning-better-together-with.html) neural network to predict whether the user will click on the app. I use the PyTorch framework to build and train the model.
-Due to the high number of records in the dataset (40428967 in the training set alone), I used PySpark to extract features from the raw dataset and then fed them to the neural network model.
+### Step 1 - Feature engineering with Apache Spark
 
-The spark job was wrapped up with [spark operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator) and deployed on GKE on the Google Cloud Platform.
+The Spark job [python script](https://github.com/yinanli617/ctr-prediction/blob/master/pyspark_docker/pyspark-ctr.py) essentially handles all the ETL work and feature engineering. The raw data is stored in a distributed file system (GCS in this project) which is loaded in the spark job. The single wide features and cross-product are one-hot encoded and the wide features are label encoded (to get embeddings later during training). The generated features are saved on GCS.
 
-- The Dockerfile for the image used for the spark job as well as the python file are located in `/docker/`.
-- The base image can be found [here](https://github.com/yinanli617/pyspark-gcp) which is configured to use BigQuery and Cloud Storage from Google Cloud Platform.
-- The spark job can be run by `kubectl create -f ctr-spark-job.yaml -n <namespace>`.
+The python script is stored in a Docker container and will be executed when the K8s pods run the container. The Dockerfile of the spark job image can be found [here](https://github.com/yinanli617/ctr-prediction/tree/master/pyspark_docker). The Dockerfile of the base image can be found in [this repository](https://github.com/yinanli617/pyspark-gcp) and is an adaptation from the [official spark operator image](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/gcp.md), which is configured to run on Google Cloud Platform.
 
-**Note: if you would like to try out this by yourself, make sure to change the settings in the yaml file to use your own `<project-name>`, `<service-account>`, `<namespace>`, and `<gs-bucket>` etc.**
+The spark job configuration is [here](https://github.com/yinanli617/ctr-prediction/blob/master/k8s_jobs/ctr-spark-job.yaml) and the specs can be modified easily to scale up the requested resources. Due to limited quota, I used 2 executors each with 3 cores.
 
-## Feature engineering
+To start the Spark job, run `kubectl create -f ./k8s_jobs/ctr-spark-job.yaml`
 
-1. For wide features:
+### Step 2 - Training wide and deep model with PyTorch
 
-   - All fields with `nunique < 100` are used;
-   - The following cross-product features are constructed:
-     - `hr` and `device_type`;
-     - `device_type` and `app_category`;
-     - `device_type` and `site_category`;
-     - `banner_pos` and `device_type`;
-   - The "single" features and the cross-product features are one-hot encoded to generate the wide features (dimension: 475).
+Just like the Spark job, the [python script](https://github.com/yinanli617/ctr-prediction/blob/master/pytorch_docker/wide_deep_k8s.py) of the PyTorch job is stored in a container built with the simple [Dockerfile](https://github.com/yinanli617/ctr-prediction/blob/master/pytorch_docker/Dockerfile).
 
-2. For deep features:
-   - Embeddings of the following features are generated and fed to the deep part of the model:
-     - `device_model` (embedding_dim: 256);
-     - `app_id` (embedding_dim: 256);
-     - `site_id` (embedding_dim: 256);
-     - `site_domain` (embedding_dim: 256);
-     - `app_domain` (embedding_dim: 128);
+Due to limited quota, I used a single GPU node as the master node and `num_workers=4`. In production, this can be easily scaled up by modifying the [PyTorch job configuration](https://github.com/yinanli617/ctr-prediction/blob/master/k8s_jobs/ctr-pytorch-job.yaml).
 
-## Model architecture
+To start the PyTorch job, run `kubectl create -f ./k8s_jobs/ctr-pytorch-job.yaml`
 
-- The deep part of the model contains 3 hidden layers with `hidden_size = [512, 256, 128]`;
-- Relu is used as activation function in the deep part;
-- The original [paper](https://arxiv.org/abs/1606.07792) used L1 regularization for the wide part. Here, Adam optimizer is used for both wide and deep parts. However, a dropout layer with `dropout_p=0.7` is added to the wide part before merging with the deep part.
+Checking the logs of the running pods should show you something like below:
+![pytorch-job-log](https://github.com/yinanli617/ctr-prediction/blob/master/gif/pytorch-job-ctr.gif)
 
 ## Results
 

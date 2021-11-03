@@ -22,7 +22,6 @@ COLUMNS = ['label',
            ]
 COLUMNS = ['wide_feature_' + str(i) for i in range(WIDE_DIM)] + COLUMNS
 EMBEDDING_INPUTS = COLUMNS[-5:]
-GOOGLE_APPLICATION_CREDENTIALS = 'kfp-yli-2b9eae382b6c.json'
 
 
 # This helper function retrieves the urls of training and validation data stored on GCS
