@@ -37,9 +37,11 @@ Due to limited quota, I used a single GPU node as the master node and `num_worke
 To start the PyTorch job, run `kubectl create -f ./k8s_jobs/ctr-pytorch-job.yaml`
 
 Checking the logs of the running pods should show you something like below:
-<br>
+<br/><br/>
 ![pytorch-job-log](https://github.com/yinanli617/ctr-prediction/blob/master/gif/pytorch-job-ctr.gif)
 
 ## Results
 
-ROC_AUC was selected as the evaluation metric (see the notebook `compute_roc_auc.ipynb` for the reasons). After 15 epochs of training, the wide and deep model results in ROC_AUC of 0.7497 - a significant improvement from gradient boosting tree model trained in Spark which has an ROC_AUC score of 0.7112.
+A step-by-step notebook that runs the training on a local GPU is also provided in this repository. When training locally, the best logloss from the test dataset is 0.3958. The deployed PyTorch job on Kubernetes used different batch size which results in a better logloss of 0.3946.
+
+ROC_AUC was selected as the evaluation metric (see the notebook `compute_roc_auc.ipynb` for the reasons). After 15 epochs of training on a local GPU, the wide and deep model results in ROC_AUC of 0.7497 - a significant improvement from gradient boosting tree model trained in Spark which has an ROC_AUC score of 0.7112.
