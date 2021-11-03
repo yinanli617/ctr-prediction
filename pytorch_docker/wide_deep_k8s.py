@@ -1,13 +1,16 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from torch.utils.data import IterableDataset, DataLoader
+from torch.utils.data import IterableDataset, Dataset, DataLoader
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import math
 from torch.optim.lr_scheduler import StepLR
 import argparse
+from google.cloud import storage
+import logging
+
 
 WIDE_DIM = 453
 COLUMNS = ['label',
@@ -19,6 +22,26 @@ COLUMNS = ['label',
            ]
 COLUMNS = ['wide_feature_' + str(i) for i in range(WIDE_DIM)] + COLUMNS
 EMBEDDING_INPUTS = COLUMNS[-5:]
+GOOGLE_APPLICATION_CREDENTIALS = 'kfp-yli-2b9eae382b6c.json'
+
+
+# This helper function retrieves the urls of training and validation data stored on GCS
+# In step 1 - spark job, the features are saved in 10,000 partitions => thus 10,000 csv files
+def list_blobs(bucket_name):
+    """Lists all the blobs in the bucket."""
+    # bucket_name = "your-bucket-name"
+
+    storage_client = storage.Client(project='kfp-yli')
+
+    # Note: Client.list_blobs requires at least package version 1.17.0.
+    train_blobs = storage_client.list_blobs(bucket_name, prefix='avazu-ctr-prediction/training_csv/')
+    val_blobs = storage_client.list_blobs(bucket_name, prefix='avazu-ctr-prediction/validation_csv/')
+
+    base_url = 'https://storage.googleapis.com/kfp-yli/'
+    train_urls = [base_url + b.name for b in train_blobs if b.name.endswith('.csv')]
+    val_urls = [base_url + b.name for b in val_blobs if b.name.endswith('.csv')]
+
+    return train_urls, val_urls
 
 
 # The wide and deep model architecture
@@ -70,71 +93,29 @@ class WideAndDeep(nn.Module):
 # Split the dataset into <num_workers> parts, so that each worker get a unique copy of a part of the dataset
 # https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset
 
-class CtrDataset(IterableDataset):
-    def __init__(self, chunksize=10000, train=True):
-        super().__init__()
-        self.train = train
-        if self.train:
-            self.num_lines = 28303473  # wc -l ./train_full.csv
-            self.path = './train_full.csv'
-        else:
-            self.num_lines = 12125494  # wc -l ./validation_full.csv
-            self.path = './validation_full.csv'
-        self.chunksize = chunksize
-        self.start = 0
-        self.end = self.num_lines + self.start - 1
+class CtrDataset(Dataset):
+    def __init__(self, urls):
+        self.urls = urls
 
-    def process_data(self, data):
-        for i, chunk in enumerate(data):
-            if self.start + i * chunk.shape[0] >= self.end:
-                break
-            else:
-                chunk.columns = COLUMNS
+    def __len__(self):
+        return len(self.urls)
 
-                # Don't repeat at the end of each partition
-                size = min(self.chunksize, self.end - (self.start + i * chunk.shape[0]))
+    def __getitem__(self, item):
+        df = pd.read_csv(self.urls[item], header=None)
+        df.columns = COLUMNS
+        X_w = df.iloc[:, :WIDE_DIM].values.astype(np.float32).squeeze()
+        X_d = df[EMBEDDING_INPUTS].values.astype(np.float32).squeeze()
+        label = df['label'].values.astype(np.float32).squeeze()
 
-                X_w = chunk.iloc[:size, :WIDE_DIM].values.astype(np.float32).squeeze()
-                X_d = chunk.iloc[:size][EMBEDDING_INPUTS].values.astype(np.float32).squeeze()
-                label = chunk.iloc[:size]['label'].values.astype(np.float32).squeeze()
-                yield X_w, X_d, label
-
-    def __iter__(self):
-        self.df = pd.read_csv(self.path,
-                              header=None,
-                              chunksize=self.chunksize,
-                              skiprows=self.start,
-                              )
-        return self.process_data(self.df)
-
-
-def worker_init_fn(worker_id):
-    worker_info = torch.utils.data.get_worker_info()
-    dataset = worker_info.dataset  # the dataset copy in this worker process
-    overall_start = dataset.start
-    overall_end = dataset.end
-    # configure the dataset to only process the split workload
-    per_worker = int(math.ceil((overall_end - overall_start) / float(worker_info.num_workers)))
-    worker_id = worker_info.id
-    dataset.start = overall_start + worker_id * per_worker
-    dataset.end = min(dataset.start + per_worker, overall_end)
-
-
-# A helper function to get the total number of batches
-def get_total(dset, dl):
-    temp = int(math.ceil((dset.end - dset.start) / float(dl.num_workers)))
-    total = int(math.ceil(temp / dset.chunksize)) * dl.num_workers
-
-    return total
+        return X_w, X_d, label
 
 
 # Training function
-def training(model, device, train_dl, scaler, optimizer, loss_fn, train_total):
-    pbar = tqdm(train_dl, total=train_total)
+def training(args, model, device, train_dl, scaler, optimizer, loss_fn):
     model.train()
     total_loss = 0
     n = 0
-    for batch_i, (X_w, X_d, label) in enumerate(pbar):
+    for batch_i, (X_w, X_d, label) in enumerate(train_dl):
         X_w = X_w.squeeze().to(device, non_blocking=True)
         X_d = X_d.squeeze().to(device, non_blocking=True)
         label = label.squeeze().unsqueeze(1).to(device, non_blocking=True)
@@ -150,21 +131,21 @@ def training(model, device, train_dl, scaler, optimizer, loss_fn, train_total):
 
         total_loss += loss.item() * label.shape[0]
         n += label.shape[0]
-
         running_loss = total_loss / n
-        pbar.set_description(f'Training Loss: {running_loss}')
+
+        if (batch_i + 1) % args.batch_interval == 0:
+            msg = f"Training batch {batch_i+1}/{len(train_dl)}\trunning loss: {running_loss:.5f}"
+            logging.info(msg)
 
     return running_loss
 
 
 # Validation function
-def validation(model, device, val_dl, loss_fn, val_total):
-    global running_loss
-    pbar = tqdm(val_dl, total=val_total)
+def validation(args, model, device, val_dl, loss_fn):
     model.eval()
     total_loss = 0
     n = 0
-    for batch_i, (X_w, X_d, label) in enumerate(pbar):
+    for batch_i, (X_w, X_d, label) in enumerate(val_dl):
         X_w = X_w.squeeze().to(device, non_blocking=True)
         X_d = X_d.squeeze().to(device, non_blocking=True)
         label = label.squeeze().unsqueeze(1).to(device, non_blocking=True)
@@ -175,9 +156,11 @@ def validation(model, device, val_dl, loss_fn, val_total):
 
         total_loss += loss.item() * label.shape[0]
         n += label.shape[0]
-
         running_loss = total_loss / n
-        pbar.set_description(f'Validation Loss: {running_loss}')
+
+        if (batch_i + 1) % args.batch_interval == 0:
+            msg = f"Validating batch {batch_i+1}/{len(val_dl)}\trunning loss: {running_loss:.5f}"
+            logging.info(msg)
 
     return running_loss
 
@@ -186,10 +169,12 @@ def main():
     parser = argparse.ArgumentParser(description="CTR prediction with wide and deep neural network")
     parser.add_argument("--epochs", type=int, default=5, metavar="N",
                         help="number of epochs to train (default: 5)")
-    parser.add_argument("--batch-size", type=int, default=2048, metavar="N",
-                        help="batch size (default: 2048)")
+    # parser.add_argument("--batch-size", type=int, default=2048, metavar="N",
+    #                     help="batch size (default: 2048)")
     parser.add_argument("--num-workers", type=int, default=2, metavar="N",
                         help="number of workers (default: 2)")
+    parser.add_argument("--batch-interval", type=int, default=500, metavar="N",
+                        help="number of batches to wait between each logging")
     parser.add_argument("--lr", type=float, default=0.001, metavar="LR",
                         help="learning rate (default: 0.001)")
     parser.add_argument("--no-cuda", action="store_true", default=False,
@@ -198,15 +183,37 @@ def main():
                         help="random seed (default: 42)")
     parser.add_argument("--save-model", action="store_true", default=False,
                         help="For Saving the current Model")
+    parser.add_argument("--log-path", type=str, default="",
+                        help="Path to save logs. Print to StdOut if log-path is not set")
     args = parser.parse_args()
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     if use_cuda:
         print("Using CUDA")
 
+    # Use this format (%Y-%m-%dT%H:%M:%SZ) to record timestamp of the metrics.
+    # If log_path is empty print log to StdOut, otherwise print log to the file.
+    if args.log_path == "":
+        logging.basicConfig(
+            format="%(asctime)s %(levelname)-8s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%SZ",
+            level=logging.INFO)
+    else:
+        logging.basicConfig(
+            format="%(asctime)s %(levelname)-8s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%SZ",
+            level=logging.INFO,
+            filename=args.log_path)
+
     torch.manual_seed(args.seed)
 
     device = torch.device("cuda" if use_cuda else "cpu")
+
+    train_urls, val_urls = list_blobs('kfp-yli')
+    train_dset = CtrDataset(train_urls)
+    val_dset = CtrDataset(val_urls)
+    train_dl = DataLoader(train_dset, batch_size=1, shuffle=True, num_workers=args.num_workers)
+    val_dl = DataLoader(val_dset, batch_size=1, shuffle=False, num_workers=args.num_workers)
 
     model = WideAndDeep(wide_dim=WIDE_DIM, embedding_inputs=EMBEDDING_INPUTS, hidden_layers=[512, 256, 128],
                         dropout_p=0.7,
@@ -232,24 +239,9 @@ def main():
     train_losses = []
     val_losses = []
     for epoch in range(1, args.epochs + 1):
-        train_dset = CtrDataset(train=True, chunksize=args.batch_size)
-        train_dl = DataLoader(train_dset,
-                              batch_size=1,
-                              num_workers=args.num_workers,
-                              worker_init_fn=worker_init_fn,
-                              )
-        val_dset = CtrDataset(train=False, chunksize=4 * args.batch_size)
-        val_dl = DataLoader(val_dset,
-                            batch_size=1,
-                            num_workers=args.num_workers,
-                            worker_init_fn=worker_init_fn,
-                            )
-        train_total = get_total(train_dset, train_dl)
-        val_total = get_total(val_dset, val_dl)
-
-        print(f'=============== Epoch {epoch} ===============')
-        train_losses.append(training(model, device, train_dl, scaler, optimizer, loss_fn, train_total))
-        val_losses.append(validation(model, device, val_dl, loss_fn, val_total))
+        print(f'\n=============== Epoch {epoch} ===============\n')
+        train_losses.append(training(args, model, device, train_dl, scaler, optimizer, loss_fn))
+        val_losses.append(validation(args, model, device, val_dl, loss_fn))
 
         lr_scheduler.step()
         print('\n')

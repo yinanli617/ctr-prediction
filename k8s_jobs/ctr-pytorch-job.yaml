@@ -1,0 +1,41 @@
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: pytorch-ctr-prediction
+  namespace: kubeflow
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: OnFailure
+      template:
+        spec:
+          containers:
+            - name: pytorch
+              image: docker.io/yinanli617/pytorch-ctr:latest
+              imagePullPolicy: Always
+              command:
+                - "python3"
+                - "/opt/ctr-prediction/wide_deep_k8s.py"
+                - "--epochs=15"
+                - "--num-workers=4"
+              resources:
+                limits:
+                  nvidia.com/gpu: 1
+#    Worker:
+#      replicas: 1
+#      restartPolicy: OnFailure
+#      template:
+#        spec:
+#          containers:
+#            - name: pytorch
+#              image: docker.io/yinanli617/pytorch-ctr:latest
+#              imagePullPolicy: Always
+#              command:
+#                - "python3"
+#                - "/opt/ctr-prediction/wide_deep_k8s.py"
+#                - "--epochs=15"
+#                - "--num-workers=6"
+#              resources:
+#                limits:
+#                  nvidia.com/gpu: 1

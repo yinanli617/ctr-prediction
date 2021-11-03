@@ -2,18 +2,18 @@ apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: ctr-generate-features
-  namespace: yinanli
+  namespace: kubeflow
 spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: docker.io/yinanli617/ctr-prediction:csv-full
+  image: docker.io/yinanli617/ctr-prediction:csv-10000-partitions
   imagePullPolicy: Always
   mainApplicationFile: local:///pipelines/pyspark-ctr.py
   sparkVersion: "3.1.1"
   hadoopConf:
-    "fs.gs.project.id": "kubeflow-yli"
-    "fs.gs.system.bucket": "pyspark-yli"
+    "fs.gs.project.id": “kfp-yli"
+    "fs.gs.system.bucket": “kfp-yli"
     "google.cloud.auth.service.account.enable": "true"
     "google.cloud.auth.service.account.json.keyfile": "/mnt/secrets/spark-sa.json"
   driver:
@@ -26,7 +26,7 @@ spec:
         path: "/mnt/secrets"
         secretType: GCPServiceAccount
     envVars:
-      GCS_PROJECT_ID: kubeflow-yli
+      GCS_PROJECT_ID: kfp-yli
     serviceAccount: spark-sa
   executor:
     instances: 1
@@ -39,4 +39,4 @@ spec:
         path: "/mnt/secrets"
         secretType: GCPServiceAccount
     envVars:
-      GCS_PROJECT_ID: kubeflow-yli
+      GCS_PROJECT_ID: kfp-yli
