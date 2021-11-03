@@ -37,6 +37,7 @@ Due to limited quota, I used a single GPU node as the master node and `num_worke
 To start the PyTorch job, run `kubectl create -f ./k8s_jobs/ctr-pytorch-job.yaml`
 
 Checking the logs of the running pods should show you something like below:
+<br>
 ![pytorch-job-log](https://github.com/yinanli617/ctr-prediction/blob/master/gif/pytorch-job-ctr.gif)
 
 ## Results
